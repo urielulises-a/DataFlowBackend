@@ -8,15 +8,22 @@ router.get("/", (req, res) => {
     res.json(routes);
 });
 
-// Agregar una nueva ruta
-router.post("/", (req, res) => {
-    const route = req.body;
-    const result = routeService.addRoute(route);
+// Calcular la ruta
+router.get("/calculate-route", async (req, res) => {
+    const { origin, destination } = req.query;
 
-    if (result) {
-        res.status(201).send("Ruta agregada con éxito");
+    // Verificar que los parámetros de consulta estén presentes
+    if (!origin || !destination) {
+        return res.status(400).send("Los parámetros de origen y destino son requeridos");
+    }
+
+    // Calcular la ruta usando Google Maps API
+    const routeDetails = await routeService.calculateRoute(origin, destination);
+
+    if (routeDetails) {
+        res.json(routeDetails); // Devuelve los detalles de la ruta (distancia, duración, pasos)
     } else {
-        res.status(400).send("La ruta ya existe");
+        res.status(500).send("Error al calcular la ruta");
     }
 });
 
