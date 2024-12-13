@@ -1,10 +1,18 @@
+// Modelo de viaje (tripModel.js)
 class Trip {
-    constructor(id, routeId, passengerId, status) {
-        this.id = id;             // Identificador único del viaje
-        this.routeId = routeId;   // ID de la ruta asociada
-        this.passengerId = passengerId; // ID del pasajero
-        this.status = status;     // Estado del viaje: "confirmed", "completed"
+    constructor(id, driverId, originLat, originLng, destinationLat, destinationLng, passengerCount, fare, status = "pending") {
+        this.id = id;
+        this.driverId = driverId;
+        this.originLat = originLat;  // Latitud de origen
+        this.originLng = originLng;  // Longitud de origen
+        this.destinationLat = destinationLat;  // Latitud de destino
+        this.destinationLng = destinationLng;  // Longitud de destino
+        this.passengerCount = passengerCount;
+        this.fare = fare;
+        this.status = status;
     }
 }
+
+
 
 module.exports = Trip;

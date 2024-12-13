@@ -1,9 +1,10 @@
+const Trip = require("../models/tripModel");
 const fs = require("fs");
 const path = require("path");
-const Trip = require("../models/tripModel");
 
 const filePath = path.join(__dirname, "../../NFS_Folder/trips.json");
 
+// Obtener todos los viajes
 function getTrips() {
     if (!fs.existsSync(filePath)) {
         return [];
@@ -12,20 +13,33 @@ function getTrips() {
     return data.trim() ? JSON.parse(data) : [];
 }
 
+// Agregar un nuevo viaje
 function addTrip(tripData) {
     const trips = getTrips();
 
-    // Validar si el viaje ya existe por ID
+    // Verificar si el viaje ya existe por ID
     if (trips.some(t => t.id === tripData.id)) {
         return false;
     }
 
-    const newTrip = new Trip(tripData.id, tripData.routeId, tripData.passengerId, "confirmed");
+    // Crear un nuevo viaje con los datos proporcionados
+    const newTrip = new Trip(
+        tripData.id,
+        tripData.driverId,
+        tripData.originLat,
+        tripData.originLng,
+        tripData.destinationLat,
+        tripData.destinationLng,
+        tripData.passengerCount,
+        tripData.fare
+    );
+
     trips.push(newTrip);
     fs.writeFileSync(filePath, JSON.stringify(trips, null, 2));
     return true;
 }
 
+// Actualizar el estado de un viaje
 function updateTripStatus(tripId, status) {
     const trips = getTrips();
     const tripIndex = trips.findIndex(t => t.id === tripId);

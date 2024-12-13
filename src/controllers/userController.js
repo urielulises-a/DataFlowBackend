@@ -9,16 +9,24 @@ router.get("/", (req, res) => {
 });
 
 // Registro de un nuevo usuario
+// Modificar el controlador de registro para que almacene la información del conductor
 router.post("/register", async (req, res) => {
-    const userData = req.body;
+    const { name, email, password, phoneNumber, type, carDetails } = req.body;
 
-    const result = await userService.addUser(userData);
+    // Validación del tipo de usuario
+    if (type === "driver" && !carDetails) {
+        return res.status(400).send("Se requiere información del vehículo para los conductores.");
+    }
+
+    // Agregar el conductor o pasajero al sistema
+    const result = await userService.addUser({ name, email, password, phoneNumber, type, carDetails });
     if (result) {
         res.status(201).send("Usuario registrado con éxito");
     } else {
         res.status(400).send("El correo ya está registrado");
     }
 });
+
 
 // Login de usuario
 router.post("/login", async (req, res) => {

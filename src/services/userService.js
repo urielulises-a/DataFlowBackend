@@ -26,6 +26,12 @@ async function addUser(userData) {
     // Cifrar la contraseña del usuario
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
+    // Crear un objeto de coche si es un conductor
+    let car = null;
+    if (userData.type === "driver" && userData.carDetails) {
+        car = new Car(userData.carDetails.licensePlate, userData.carDetails.model, userData.carDetails.color);
+    }
+
     // Crear un nuevo usuario
     const newUser = new User(
         userData.id,
@@ -33,13 +39,15 @@ async function addUser(userData) {
         userData.email,
         hashedPassword,
         userData.phoneNumber,
-        userData.type
+        userData.type,
+        car  // Asociar coche solo si es un conductor
     );
 
     users.push(newUser);
     fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
     return true;
 }
+
 
 // Verificar las credenciales del usuario
 async function verifyUser(email, password) {
