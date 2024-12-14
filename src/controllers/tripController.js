@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const tripService = require("../services/tripService");
+const userService = require("../services/userService"); // Importamos el servicio de usuarios
 
 // Obtener todos los viajes
 router.get("/", (req, res) => {
@@ -33,6 +34,7 @@ router.put("/:id", (req, res) => {
     }
 });
 
+// Función para calcular la distancia utilizando la fórmula de Haversine
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radio de la Tierra en kilómetros
     const dLat = toRadians(lat2 - lat1);
@@ -51,20 +53,21 @@ function toRadians(degrees) {
     return degrees * (Math.PI / 180);
 }
 
+// Buscar viajes cercanos
 router.post("/find", async (req, res) => {
     const { origin, destination, maxFare } = req.body;  // Recibimos las coordenadas desde el frontend
 
-    const trips = tripService.getTrips();
+    const trips = tripService.getTrips();  // Obtener todos los viajes
     const filteredTrips = trips.filter(trip => {
         // Calculamos la distancia entre el origen y el destino
         const originDistance = calculateDistance(
             origin.lat, origin.lng,
-            trip.originLat, trip.originLng  // Las coordenadas del viaje en la base de datos
+            trip.originLat, trip.originLng  // Coordenadas del viaje en la base de datos
         );
         
         const destinationDistance = calculateDistance(
             destination.lat, destination.lng,
-            trip.destinationLat, trip.destinationLng  // Las coordenadas del viaje en la base de datos
+            trip.destinationLat, trip.destinationLng  // Coordenadas del viaje en la base de datos
         );
 
         // Verificamos si la distancia de origen y destino está dentro de 1 km
@@ -74,8 +77,26 @@ router.post("/find", async (req, res) => {
         return isOriginClose && isDestinationClose && trip.fare <= maxFare;
     });
 
-    res.json(filteredTrips);
-});
+    // Obtener los detalles del conductor para los viajes filtrados
+    const tripDetails = filteredTrips.map(trip => {
+        const driver = userService.getUserById(trip.driverId); // Buscamos el conductor por su ID
+        return {
+            driverName: driver.name,  // Nombre del conductor
+            route: {
+                origin: {
+                    lat: trip.originLat,
+                    lng: trip.originLng
+                },
+                destination: {
+                    lat: trip.destinationLat,
+                    lng: trip.destinationLng
+                }
+            },
+            fare: trip.fare  // Tarifa por pasajero
+        };
+    });
 
+    res.json(tripDetails);
+});
 
 module.exports = router;

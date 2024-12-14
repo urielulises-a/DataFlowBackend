@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");  // Importamos uuid para generar IDs únicos
 const User = require("../models/userModel");
-const Car = require("../models/carModel")
+const Car = require("../models/carModel");
 
 const filePath = path.join(__dirname, "../../NFS_Folder/users.json");
 
@@ -13,6 +14,12 @@ function getUsers() {
     }
     const data = fs.readFileSync(filePath, "utf-8");
     return data.trim() ? JSON.parse(data) : [];
+}
+
+// Obtener un usuario por su ID
+function getUserById(userId) {
+    const users = getUsers();  // Leer todos los usuarios
+    return users.find(u => u.id === userId);  // Encontrar el usuario por su ID
 }
 
 // Agregar un nuevo usuario
@@ -27,20 +34,21 @@ async function addUser(userData) {
     // Cifrar la contraseña del usuario
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
+    // Generar un UUID para el nuevo usuario
+    const newUserId = uuidv4();  // Generamos un ID único con uuid
+
     // Crear un objeto de coche si es un conductor
-    let id;
     let car = null;
     if (userData.type === "driver" && userData.carDetails) {
         car = new Car(userData.carDetails.plate, userData.carDetails.model, userData.carDetails.color);
-        console.log(`Datos del auto: ${car}`)
+        console.log(`Datos del auto: ${car}`);
     }
 
     // Crear un nuevo usuario
     const newUser = new User(
-        userData.id,
+        newUserId,  // Asignar el UUID generado
         userData.name,
         userData.email,
-	    userData.phoneNumber,
         hashedPassword,
         userData.phoneNumber,
         userData.type,
@@ -51,7 +59,6 @@ async function addUser(userData) {
     fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
     return true;
 }
-
 
 // Verificar las credenciales del usuario
 async function verifyUser(email, password) {
@@ -71,4 +78,5 @@ module.exports = {
     getUsers,
     addUser,
     verifyUser,
+    getUserById,
 };
