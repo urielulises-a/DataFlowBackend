@@ -12,7 +12,6 @@ router.get("/", (req, res) => {
 // Modificar el controlador de registro para que almacene la información del conductor
 router.post("/register", async (req, res) => {
     const { name, email, password, phoneNumber, type, carDetails } = req.body;
-
     // Validación del tipo de usuario
     if (type === "driver" && !carDetails) {
         return res.status(400).send("Se requiere información del vehículo para los conductores.");

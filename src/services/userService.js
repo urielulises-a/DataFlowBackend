@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const User = require("../models/userModel");
+const Car = require("../models/carModel")
 
 const filePath = path.join(__dirname, "../../NFS_Folder/users.json");
 
@@ -27,9 +28,11 @@ async function addUser(userData) {
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
     // Crear un objeto de coche si es un conductor
+    let id;
     let car = null;
     if (userData.type === "driver" && userData.carDetails) {
-        car = new Car(userData.carDetails.licensePlate, userData.carDetails.model, userData.carDetails.color);
+        car = new Car(userData.carDetails.plate, userData.carDetails.model, userData.carDetails.color);
+        console.log(`Datos del auto: ${car}`)
     }
 
     // Crear un nuevo usuario
@@ -37,6 +40,7 @@ async function addUser(userData) {
         userData.id,
         userData.name,
         userData.email,
+	    userData.phoneNumber,
         hashedPassword,
         userData.phoneNumber,
         userData.type,
