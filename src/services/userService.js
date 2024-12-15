@@ -57,7 +57,7 @@ async function addUser(userData) {
 
     users.push(newUser);
     fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
-    return true;
+    return newUserId;
 }
 
 // Verificar las credenciales del usuario

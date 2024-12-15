@@ -18,9 +18,9 @@ router.post("/register", async (req, res) => {
     }
 
     // Agregar el conductor o pasajero al sistema
-    const result = await userService.addUser({ name, email, password, phoneNumber, type, carDetails });
-    if (result) {
-        res.status(201).send("Usuario registrado con éxito");
+    const UID = await userService.addUser({ name, email, password, phoneNumber, type, carDetails });
+    if (UID) {
+        res.status(201).json({ message: "Inicio de sesión exitoso", UID });
     } else {
         res.status(400).send("El correo ya está registrado");
     }
@@ -29,6 +29,7 @@ router.post("/register", async (req, res) => {
 
 // Login de usuario
 router.post("/login", async (req, res) => {
+    console.log(`Intento de Login desde ${req.headers.origin}`);
     const { email, password } = req.body;
 
     const user = await userService.verifyUser(email, password);

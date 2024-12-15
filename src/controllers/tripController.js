@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const tripService = require("../services/tripService");
 const userService = require("../services/userService"); // Importamos el servicio de usuarios
+const routeService = require('../services/routeService');
 
 // Obtener todos los viajes
 router.get("/", (req, res) => {
@@ -9,17 +10,40 @@ router.get("/", (req, res) => {
     res.json(trips);
 });
 
-// Agregar un nuevo viaje
-router.post("/", (req, res) => {
-    const tripData = req.body;
-    const result = tripService.addTrip(tripData);
 
-    if (result) {
+// Agregar un nuevo viaje
+router.post("/addTrip", (req, res) => {
+    const tripData = req.body;
+
+    // Agregar la ruta primero y obtener su ID
+    const routeId = routeService.addRoute({
+        origin: tripData.origin,
+        destination: tripData.destination,
+        schedule: tripData.schedule
+    });
+
+    if (!routeId) {
+        return res.status(400).send("No se pudo registrar la ruta.");
+    }
+
+    // Asociar la ruta al viaje
+    const newTripData = {
+        driverId: tripData.driverId,
+        routeId: routeId,
+        passengerCount: tripData.passengerCount,
+        fare: tripData.fare
+    };
+
+    // Registrar el viaje
+    const resultTrip = tripService.addTrip(newTripData);
+
+    if (resultTrip) {
         res.status(201).send("Viaje confirmado con éxito");
     } else {
         res.status(400).send("El viaje ya existe");
     }
 });
+
 
 // Actualizar el estado de un viaje
 router.put("/:id", (req, res) => {
