@@ -87,24 +87,24 @@ router.post("/find", async (req, res) => {
     const filteredTrips = trips.filter(trip => {
         // Verificar si el estado del viaje es "waiting"
         if (trip.status !== "waiting") return false;
-
+    
         // Obtener la ruta asociada al viaje
         const route = routes.find(r => r.id === trip.routeId);
         if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
-
-        // Verificar si el viaje fue creado hace menos de 15 minutos
+    
+        // Verificar si han pasado menos de 15 minutos desde la salida
         const scheduleISO = route.schedule; // Asumimos que schedule es un string en formato ISO 8601
-        const departureTime = new Date(scheduleISO); // Convertir a objeto Date UTC
+        const departureTime = new Date(scheduleISO); // Convertir a objeto Date (UTC)
         const currentTime = new Date(); // Hora actual en UTC
-
-        const timeDifference = departureTime - currentTime; // Diferencia en milisegundos
-
+    
+        const timeDifference = currentTime - departureTime; // Diferencia en milisegundos
+    
         console.log(`Current Time: ${currentTime.toISOString()}`);
         console.log(`Departure Time: ${departureTime.toISOString()}`);
         console.log(`Time Difference: ${timeDifference}`);
-
-        // Verificar si el tiempo restante es mayor a 0 (aún no ha pasado) y menor o igual a 15 minutos (900000 milisegundos)
-        if (timeDifference > 0 && timeDifference <= 15 * 60 * 1000) {
+    
+        // Verificar si la diferencia de tiempo es mayor a 0 (viaje ya comenzó) y menor o igual a 15 minutos (900000 ms)
+        if (timeDifference >= 0 && timeDifference <= 15 * 60 * 1000) {
             // Calculamos la distancia entre el origen y el destino
             const originDistance = calculateDistance(
                 origin.lat, origin.lng,
@@ -114,16 +114,17 @@ router.post("/find", async (req, res) => {
                 destination.lat, destination.lng,
                 route.destination.lat, route.destination.lng
             );
-
+    
             // Verificamos si la distancia de origen y destino está dentro de 1 km
             const isOriginClose = originDistance <= 1;
             const isDestinationClose = destinationDistance <= 1;
-
+    
             return isOriginClose && isDestinationClose;
         }
-
-        return false; // Si no cumple con el tiempo restante, lo filtramos
+    
+        return false; // Si no cumple con el tiempo o la distancia, lo filtramos
     });
+    
 
     // Obtener los detalles del conductor para los viajes filtrados
     const tripDetails = await Promise.all(
