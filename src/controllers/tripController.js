@@ -135,9 +135,9 @@ router.post("/find", async (req, res) => {
             if (driver && driver.car) {
                 try {
                     // Desencriptar los datos del coche utilizando la función decryptCarData
-                    const plate = decryptCarData(driver.car.plate);
-                    const model = decryptCarData(driver.car.model);
-                    const color = decryptCarData(driver.car.color);
+                    const plate = userService.decryptCarData(driver.car.plate);
+                    const model = userService.decryptCarData(driver.car.model);
+                    const color = userService.decryptCarData(driver.car.color);
 
                     carDetails = {
                         plate: plate || "No disponible",
