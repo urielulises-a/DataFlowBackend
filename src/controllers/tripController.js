@@ -1,6 +1,4 @@
-// Importar las dependencias necesarias
 const express = require("express");
-const bcrypt = require("bcrypt");
 const router = express.Router();
 const tripService = require("../services/tripService");
 const userService = require("../services/userService"); // Importamos el servicio de usuarios
@@ -11,6 +9,7 @@ router.get("/", (req, res) => {
     const trips = tripService.getTrips();
     res.json(trips);
 });
+
 
 // Agregar un nuevo viaje
 router.post("/addTrip", (req, res) => {
@@ -45,6 +44,7 @@ router.post("/addTrip", (req, res) => {
     }
 });
 
+
 // Actualizar el estado de un viaje
 router.put("/:id", (req, res) => {
     const tripId = parseInt(req.params.id, 10);
@@ -78,72 +78,88 @@ function toRadians(degrees) {
 }
 
 // Buscar viajes cercanos
-const Car = require('../models/carModel');  // Asegúrate de que la ruta es correcta
-
 router.post("/find", async (req, res) => {
-    const { origin, destination } = req.body;
+    const { origin, destination } = req.body; // Recibimos las coordenadas desde el frontend
 
-    const routes = routeService.getRoutes();
-    const trips = tripService.getTrips();
+    const routes = routeService.getRoutes(); // Obtener todas las rutas disponibles
+    const trips = tripService.getTrips(); // Obtener todos los viajes
 
     const filteredTrips = trips.filter(trip => {
+        // Verificar si el estado del viaje es "waiting"
         if (trip.status !== "waiting") return false;
 
+        // Obtener la ruta asociada al viaje
         const route = routes.find(r => r.id === trip.routeId);
-        if (!route) return false;
+        if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
 
+        // Extraer la hora y minuto de "HH:mm AM/PM"
         const [time, period] = route.schedule.split(" ");
         let [hour, minute] = time.split(":").map(Number);
         if (period === "PM" && hour < 12) hour += 12;
-        if (period === "AM" && hour === 12) hour = 0;
+        if (period === "AM" && hour === 12) hour = 0; // Ajustar medianoche
 
-        const currentDate = new Date();
+        // Crear un objeto de fecha combinando la fecha actual con la hora del schedule
+        const currentDate = new Date(); // Fecha y hora actual
         const scheduleDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, minute);
 
-        const minutesElapsed = (currentDate - scheduleDate) / (1000 * 60);
+        // Verificar si el viaje fue creado hace menos de 15 minutos
+        const minutesElapsed = (currentDate - scheduleDate) / (1000 * 60); // Diferencia en minutos
         if (minutesElapsed > 15) return false;
 
-        const originDistance = calculateDistance(origin.lat, origin.lng, route.origin.lat, route.origin.lng);
-        const destinationDistance = calculateDistance(destination.lat, destination.lng, route.destination.lat, route.destination.lng);
+        // Calculamos la distancia entre el origen y el destino
+        const originDistance = calculateDistance(
+            origin.lat, origin.lng,
+            route.origin.lat, route.origin.lng
+        );
+        const destinationDistance = calculateDistance(
+            destination.lat, destination.lng,
+            route.destination.lat, route.destination.lng
+        );
 
+        // Verificamos si la distancia de origen y destino está dentro de 1 km
         const isOriginClose = originDistance <= 1;
         const isDestinationClose = destinationDistance <= 1;
 
         return isOriginClose && isDestinationClose;
     });
 
+    // Obtener los detalles del conductor para los viajes filtrados
     const tripDetails = await Promise.all(
         filteredTrips.map(async trip => {
-            const driver = userService.getUserById(trip.driverId);
-            const route = routes.find(r => r.id === trip.routeId);
+            const driver = userService.getUserById(trip.driverId); // Buscamos el conductor por su ID
+            const route = routes.find(r => r.id === trip.routeId); // Ruta asociada al viaje
 
+            // Verificar si el conductor tiene un coche registrado
             let carDetails = null;
             if (driver && driver.car) {
                 try {
-                    // Desencriptar los datos del coche utilizando decryptCarData
+                    // Desencriptar los datos del coche utilizando la función decryptCarData
                     const plate = userService.decryptCarData(driver.car.plate);
                     const model = userService.decryptCarData(driver.car.model);
                     const color = userService.decryptCarData(driver.car.color);
 
-                    // Crear un objeto Car con los datos desencriptados
-                    carDetails = new Car(plate, model, color);
+                    carDetails = {
+                        plate: plate || "No disponible",
+                        model: model || "No disponible",
+                        color: color || "No disponible",
+                    };
                 } catch (error) {
                     console.error("Error al desencriptar los datos del coche:", error);
-                    carDetails = new Car("Error", "Error", "Error"); // Valores por defecto en caso de error
+                    carDetails = { plate: "Error", model: "Error", color: "Error" };
                 }
             }
 
             return {
-                tripId: trip.id,
-                driverName: driver ? driver.name : "Desconocido",
-                phoneNumber: driver ? driver.phoneNumber : "Desconocido",
-                carDetails: carDetails ? carDetails.toString() : "No disponible", // Aquí puedes llamar al método toString() para mostrar la info
+                tripId: trip.id,                     // ID del viaje
+                driverName: driver ? driver.name : "Desconocido", // Nombre del conductor
+                phoneNumber: driver ? driver.phoneNumber : "Desconocido", // Número telefónico del conductor
+                carDetails: carDetails,              // Datos del coche desencriptados
                 route: {
                     origin: route.origin,
                     destination: route.destination,
                 },
-                schedule: route.schedule,
-                fare: trip.fare,
+                schedule: route.schedule,            // Horario del viaje
+                fare: trip.fare,                     // Tarifa del viaje
             };
         })
     );
@@ -151,8 +167,10 @@ router.post("/find", async (req, res) => {
     res.status(200).json(tripDetails);
 });
 
-// Cancelar asistencia a un viaje
-router.delete("/cancelAssistant", (req, res) => {
+
+
+router.post("/addUserInTrip", (req, res) => {
+
     const { tripId, userId } = req.body;
 
     if (!tripId || !userId) {
@@ -160,32 +178,6 @@ router.delete("/cancelAssistant", (req, res) => {
     }
 
     const trips = tripService.getTrips(); // Obtener todos los viajes
-    const tripIndex = trips.findIndex(trip => trip.id === tripId); // Encontrar el índice del viaje
-
-    if (tripIndex === -1) {
-        return res.status(404).json({ error: "Viaje no encontrado." });
-    }
-
-    const trip = trips[tripIndex];
-
-    // Buscar el índice del pasajero a eliminar
-    const passengerIndex = trip.passengerIds.indexOf(userId);
-    if (passengerIndex === -1) {
-        return res.status(404).json({ error: "Usuario no encontrado en este viaje." });
-    }
-
-    // Eliminar al pasajero del array
-    trip.passengerIds.splice(passengerIndex, 1);
-
-    // Guardar los cambios en el archivo JSON
-    const updatedTrips = [...trips];
-    updatedTrips[tripIndex] = trip;
-    tripService.saveTrips(updatedTrips);
-
-    res.status(200).json({ message: "Usuario eliminado del viaje exitosamente." });
-});
-
-const express = require("express");
     const tripIndex = trips.findIndex(trip => trip.id === tripId); // Encontrar el índice del viaje
 
     if (tripIndex === -1) {
@@ -213,6 +205,40 @@ const express = require("express");
     tripService.saveTrips(updatedTrips);
 
     res.status(200).json({ message: "Usuario añadido al viaje exitosamente." });
+});
+
+// Método DELETE: cancelar la asistencia de un usuario en un viaje
+router.delete("/cancelAssistant", (req, res) => {
+    const { tripId, userId } = req.body;
+
+    // Validar que se proporcionen tripId y userId
+    if (!tripId || !userId) {
+        return res.status(400).json({ message: "Se requieren tripId y userId." });
+    }
+
+    // Leer los datos del archivo
+    let trips = readTripsFile();
+
+    // Buscar el viaje correspondiente
+    const tripIndex = trips.findIndex(trip => trip.id === tripId);
+
+    if (tripIndex === -1) {
+        return res.status(404).json({ message: "Viaje no encontrado." });
+    }
+
+    // Eliminar el userId del array passengersIds
+    const passengerIndex = trips[tripIndex].passengersIds.indexOf(userId);
+
+    if (passengerIndex === -1) {
+        return res.status(404).json({ message: "Usuario no encontrado en la lista de pasajeros." });
+    }
+
+    trips[tripIndex].passengersIds.splice(passengerIndex, 1);
+
+    // Escribir los cambios en el archivo
+    writeTripsFile(trips);
+
+    res.status(200).json({ message: "Usuario eliminado de la lista de pasajeros.", tripId, userId });
 });
 
 // Cancelar un viaje
@@ -254,5 +280,5 @@ router.get("/checkTripStatus", (req, res) => {
     res.status(200).json({ status: trip.status });
 });
 
-module.exports = router;
 
+module.exports = router;
