@@ -90,7 +90,5 @@ module.exports = {
     getUsers,
     addUser,
     verifyUser,
-    getUserById,
-    encryptCarData,
-    decryptCarData,
+    getUserById
 };
