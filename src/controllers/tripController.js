@@ -94,11 +94,16 @@ router.post("/find", async (req, res) => {
 
         // Verificar si el viaje fue creado hace menos de 15 minutos
         const scheduleISO = route.schedule; // Asumimos que schedule es un string en formato ISO 8601
-        const departureTime = new Date(scheduleISO); // Convertir a objeto Date
-        const currentTime = new Date(); // Hora actual
+        const departureTime = new Date(scheduleISO); // Convertir a objeto Date UTC
+        const currentTime = new Date(); // Hora actual en UTC
+
         const timeDifference = departureTime - currentTime; // Diferencia en milisegundos
 
-        // Si el tiempo restante es menor a 15 minutos (900000 milisegundos)
+        console.log(`Current Time: ${currentTime.toISOString()}`);
+        console.log(`Departure Time: ${departureTime.toISOString()}`);
+        console.log(`Time Difference: ${timeDifference}`);
+
+        // Verificar si el tiempo restante es mayor a 0 (aún no ha pasado) y menor o igual a 15 minutos (900000 milisegundos)
         if (timeDifference > 0 && timeDifference <= 15 * 60 * 1000) {
             // Calculamos la distancia entre el origen y el destino
             const originDistance = calculateDistance(
@@ -153,6 +158,7 @@ router.post("/find", async (req, res) => {
 
     res.status(200).json(tripDetails);
 });
+
 
 
 router.post("/addUserInTrip", (req, res) => {
