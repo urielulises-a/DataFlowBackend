@@ -38,7 +38,11 @@ router.post("/addTrip", (req, res) => {
     const resultTrip = tripService.addTrip(newTripData);
 
     if (resultTrip) {
-        res.status(201).json({message : "Viaje confirmado con éxito"});
+        // Asumiendo que resultTrip tiene la estructura con un id del viaje
+        return res.status(201).json({ 
+            message: "Viaje confirmado con éxito", 
+            tripId: resultTrip.id // Retornamos el ID del viaje recién creado
+        });
     } else {
         res.status(400).send("El viaje ya existe");
     }
