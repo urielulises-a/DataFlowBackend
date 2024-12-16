@@ -1,3 +1,4 @@
+// Importar las dependencias necesarias
 const express = require("express");
 const bcrypt = require("bcrypt");
 const router = express.Router();
@@ -10,7 +11,6 @@ router.get("/", (req, res) => {
     const trips = tripService.getTrips();
     res.json(trips);
 });
-
 
 // Agregar un nuevo viaje
 router.post("/addTrip", (req, res) => {
@@ -44,7 +44,6 @@ router.post("/addTrip", (req, res) => {
         res.status(400).send("El viaje ya existe");
     }
 });
-
 
 // Actualizar el estado de un viaje
 router.put("/:id", (req, res) => {
@@ -152,11 +151,8 @@ router.post("/find", async (req, res) => {
     res.status(200).json(tripDetails);
 });
 
-
-
-
-router.post("/addUserInTrip", (req, res) => {
-
+// Cancelar asistencia a un viaje
+router.delete("/cancelAssistant", (req, res) => {
     const { tripId, userId } = req.body;
 
     if (!tripId || !userId) {
@@ -164,6 +160,32 @@ router.post("/addUserInTrip", (req, res) => {
     }
 
     const trips = tripService.getTrips(); // Obtener todos los viajes
+    const tripIndex = trips.findIndex(trip => trip.id === tripId); // Encontrar el índice del viaje
+
+    if (tripIndex === -1) {
+        return res.status(404).json({ error: "Viaje no encontrado." });
+    }
+
+    const trip = trips[tripIndex];
+
+    // Buscar el índice del pasajero a eliminar
+    const passengerIndex = trip.passengerIds.indexOf(userId);
+    if (passengerIndex === -1) {
+        return res.status(404).json({ error: "Usuario no encontrado en este viaje." });
+    }
+
+    // Eliminar al pasajero del array
+    trip.passengerIds.splice(passengerIndex, 1);
+
+    // Guardar los cambios en el archivo JSON
+    const updatedTrips = [...trips];
+    updatedTrips[tripIndex] = trip;
+    tripService.saveTrips(updatedTrips);
+
+    res.status(200).json({ message: "Usuario eliminado del viaje exitosamente." });
+});
+
+const express = require("express");
     const tripIndex = trips.findIndex(trip => trip.id === tripId); // Encontrar el índice del viaje
 
     if (tripIndex === -1) {
@@ -193,5 +215,44 @@ router.post("/addUserInTrip", (req, res) => {
     res.status(200).json({ message: "Usuario añadido al viaje exitosamente." });
 });
 
+// Cancelar un viaje
+router.put("/cancelTrip", (req, res) => {
+    const { tripId } = req.body;
+
+    if (!tripId) {
+        return res.status(400).json({ error: "El parámetro tripId es necesario." });
+    }
+
+    const trips = tripService.getTrips();
+    const tripIndex = trips.findIndex(trip => trip.id === tripId);
+
+    if (tripIndex === -1) {
+        return res.status(404).json({ error: "Viaje no encontrado." });
+    }
+
+    trips[tripIndex].status = "canceled";
+    tripService.saveTrips(trips);
+
+    res.status(200).json({ message: "Viaje cancelado exitosamente." });
+});
+
+// Consultar el estado de un viaje
+router.get("/checkTripStatus", (req, res) => {
+    const { tripId } = req.query;
+
+    if (!tripId) {
+        return res.status(400).json({ error: "El parámetro tripId es necesario." });
+    }
+
+    const trips = tripService.getTrips();
+    const trip = trips.find(trip => trip.id === tripId);
+
+    if (!trip) {
+        return res.status(404).json({ error: "Viaje no encontrado." });
+    }
+
+    res.status(200).json({ status: trip.status });
+});
 
 module.exports = router;
+
