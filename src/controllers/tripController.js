@@ -79,94 +79,79 @@ function toRadians(degrees) {
 }
 
 // Buscar viajes cercanos
-router.post("/find", async (req, res) => {
-    const { origin, destination } = req.body; // Recibimos las coordenadas desde el frontend
+const Car = require('../models/carModel');  // Asegúrate de que la ruta es correcta
 
-    const routes = routeService.getRoutes(); // Obtener todas las rutas disponibles
-    const trips = tripService.getTrips(); // Obtener todos los viajes
+router.post("/find", async (req, res) => {
+    const { origin, destination } = req.body;
+
+    const routes = routeService.getRoutes();
+    const trips = tripService.getTrips();
 
     const filteredTrips = trips.filter(trip => {
-        // Verificar si el estado del viaje es "waiting"
         if (trip.status !== "waiting") return false;
 
-        // Obtener la ruta asociada al viaje
         const route = routes.find(r => r.id === trip.routeId);
-        if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
+        if (!route) return false;
 
-        // Extraer la hora y minuto de "HH:mm AM/PM"
         const [time, period] = route.schedule.split(" ");
         let [hour, minute] = time.split(":").map(Number);
         if (period === "PM" && hour < 12) hour += 12;
-        if (period === "AM" && hour === 12) hour = 0; // Ajustar medianoche
+        if (period === "AM" && hour === 12) hour = 0;
 
-        // Crear un objeto de fecha combinando la fecha actual con la hora del schedule
-        const currentDate = new Date(); // Fecha y hora actual
+        const currentDate = new Date();
         const scheduleDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, minute);
 
-        // Verificar si el viaje fue creado hace menos de 15 minutos
-        const minutesElapsed = (currentDate - scheduleDate) / (1000 * 60); // Diferencia en minutos
+        const minutesElapsed = (currentDate - scheduleDate) / (1000 * 60);
         if (minutesElapsed > 15) return false;
 
-        // Calculamos la distancia entre el origen y el destino
-        const originDistance = calculateDistance(
-            origin.lat, origin.lng,
-            route.origin.lat, route.origin.lng
-        );
-        const destinationDistance = calculateDistance(
-            destination.lat, destination.lng,
-            route.destination.lat, route.destination.lng
-        );
+        const originDistance = calculateDistance(origin.lat, origin.lng, route.origin.lat, route.origin.lng);
+        const destinationDistance = calculateDistance(destination.lat, destination.lng, route.destination.lat, route.destination.lng);
 
-        // Verificamos si la distancia de origen y destino está dentro de 1 km
         const isOriginClose = originDistance <= 1;
         const isDestinationClose = destinationDistance <= 1;
 
         return isOriginClose && isDestinationClose;
     });
 
-    // Obtener los detalles del conductor para los viajes filtrados
     const tripDetails = await Promise.all(
         filteredTrips.map(async trip => {
-            const driver = userService.getUserById(trip.driverId); // Buscamos el conductor por su ID
-            const route = routes.find(r => r.id === trip.routeId); // Ruta asociada al viaje
+            const driver = userService.getUserById(trip.driverId);
+            const route = routes.find(r => r.id === trip.routeId);
 
-            // Verificar si el conductor tiene un coche registrado
             let carDetails = null;
             if (driver && driver.car) {
                 try {
-                    // Desencriptar los datos del coche utilizando la función decryptCarData
+                    // Desencriptar los datos del coche utilizando decryptCarData
                     const plate = userService.decryptCarData(driver.car.plate);
                     const model = userService.decryptCarData(driver.car.model);
                     const color = userService.decryptCarData(driver.car.color);
 
-                    carDetails = {
-                        plate: plate || "No disponible",
-                        model: model || "No disponible",
-                        color: color || "No disponible",
-                    };
+                    // Crear un objeto Car con los datos desencriptados
+                    carDetails = new Car(plate, model, color);
                 } catch (error) {
                     console.error("Error al desencriptar los datos del coche:", error);
-                    carDetails = { plate: "Error", model: "Error", color: "Error" };
+                    carDetails = new Car("Error", "Error", "Error"); // Valores por defecto en caso de error
                 }
             }
 
             return {
-                tripId: trip.id,                     // ID del viaje
-                driverName: driver ? driver.name : "Desconocido", // Nombre del conductor
-                phoneNumber: driver ? driver.phoneNumber : "Desconocido", // Número telefónico del conductor
-                carDetails: carDetails,              // Datos del coche desencriptados
+                tripId: trip.id,
+                driverName: driver ? driver.name : "Desconocido",
+                phoneNumber: driver ? driver.phoneNumber : "Desconocido",
+                carDetails: carDetails ? carDetails.toString() : "No disponible", // Aquí puedes llamar al método toString() para mostrar la info
                 route: {
                     origin: route.origin,
                     destination: route.destination,
                 },
-                schedule: route.schedule,            // Horario del viaje
-                fare: trip.fare,                     // Tarifa del viaje
+                schedule: route.schedule,
+                fare: trip.fare,
             };
         })
     );
 
     res.status(200).json(tripDetails);
 });
+
 
 
 
