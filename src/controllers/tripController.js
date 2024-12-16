@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
 const router = express.Router();
 const tripService = require("../services/tripService");
 const userService = require("../services/userService"); // Importamos el servicio de usuarios
@@ -38,7 +39,7 @@ router.post("/addTrip", (req, res) => {
     const resultTrip = tripService.addTrip(newTripData);
 
     if (resultTrip) {
-        res.status(201).send("Viaje confirmado con éxito");
+        res.status(201).json({message : "Viaje confirmado con éxito"});
     } else {
         res.status(400).send("El viaje ya existe");
     }
@@ -79,48 +80,113 @@ function toRadians(degrees) {
 
 // Buscar viajes cercanos
 router.post("/find", async (req, res) => {
-    const { origin, destination, maxFare } = req.body;  // Recibimos las coordenadas desde el frontend
+    const { origin, destination } = req.body; // Recibimos las coordenadas desde el frontend
 
-    const trips = tripService.getTrips();  // Obtener todos los viajes
+    const routes = routeService.getRoutes(); // Obtener todas las rutas disponibles
+    const trips = tripService.getTrips(); // Obtener todos los viajes
+
     const filteredTrips = trips.filter(trip => {
+        // Buscar la ruta asociada al viaje
+        const route = routes.find(r => r.id === trip.routeId);
+        if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
+
         // Calculamos la distancia entre el origen y el destino
         const originDistance = calculateDistance(
             origin.lat, origin.lng,
-            trip.originLat, trip.originLng  // Coordenadas del viaje en la base de datos
+            route.origin.lat, route.origin.lng
         );
-        
         const destinationDistance = calculateDistance(
             destination.lat, destination.lng,
-            trip.destinationLat, trip.destinationLng  // Coordenadas del viaje en la base de datos
+            route.destination.lat, route.destination.lng
         );
 
         // Verificamos si la distancia de origen y destino está dentro de 1 km
         const isOriginClose = originDistance <= 1;
         const isDestinationClose = destinationDistance <= 1;
 
-        return isOriginClose && isDestinationClose && trip.fare <= maxFare;
+        return isOriginClose && isDestinationClose;
     });
 
     // Obtener los detalles del conductor para los viajes filtrados
-    const tripDetails = filteredTrips.map(trip => {
-        const driver = userService.getUserById(trip.driverId); // Buscamos el conductor por su ID
-        return {
-            driverName: driver.name,  // Nombre del conductor
-            route: {
-                origin: {
-                    lat: trip.originLat,
-                    lng: trip.originLng
-                },
-                destination: {
-                    lat: trip.destinationLat,
-                    lng: trip.destinationLng
-                }
-            },
-            fare: trip.fare  // Tarifa por pasajero
-        };
-    });
+    const tripDetails = await Promise.all(
+        filteredTrips.map(async trip => {
+            const driver = userService.getUserById(trip.driverId); // Buscamos el conductor por su ID
+            const route = routes.find(r => r.id === trip.routeId); // Ruta asociada al viaje
 
-    res.json(tripDetails);
+            // Verificar si el conductor tiene un coche registrado
+            let carDetails = null;
+            if (driver.car) {
+                try {
+                    // Desencriptar los datos del coche
+                    const plate = await bcrypt.compareSync(driver.car.plate);
+                    const model = await bcrypt.compareSync(driver.car.model);
+                    const color = await bcrypt.compareSync(driver.car.color);
+
+                    carDetails = {
+                        plate: plate ? driver.car.plate : "No disponible",
+                        model: model ? driver.car.model : "No disponible",
+                        color: color ? driver.car.color : "No disponible",
+                    };
+                } catch (error) {
+                    console.error("Error al desencriptar los datos del coche:", error);
+                    carDetails = { plate: "Error", model: "Error", color: "Error" };
+                }
+            }
+
+            return {
+                tripId: trip.id,                     // ID del viaje
+                driverName: driver.name,             // Nombre del conductor
+                phoneNumber: driver.phoneNumber,     // Número telefónico del conductor
+                carDetails: carDetails,              // Datos del coche desencriptados
+                route: {
+                    origin: route.origin,
+                    destination: route.destination,
+                },
+                schedule: route.schedule,            // Horario del viaje
+                fare: trip.fare,                     // Tarifa del viaje
+            };
+        })
+    );
+
+    res.status(200).json(tripDetails);
 });
+
+router.put("/addUserInTrip", (req, res) => {
+    const { tripId, userId } = req.body;
+
+    if (!tripId || !userId) {
+        return res.status(400).json({ error: "Faltan parámetros necesarios (tripId, userId)." });
+    }
+
+    const trips = tripService.getTrips(); // Obtener todos los viajes
+    const tripIndex = trips.findIndex(trip => trip.id === tripId); // Encontrar el índice del viaje
+
+    if (tripIndex === -1) {
+        return res.status(404).json({ error: "Viaje no encontrado." });
+    }
+
+    const trip = trips[tripIndex];
+
+    // Verificar si el pasajero ya está incluido
+    if (trip.passengerIds.includes(userId)) {
+        return res.status(400).json({ error: "El usuario ya está registrado en este viaje." });
+    }
+
+    // Verificar si el número máximo de pasajeros ya se alcanzó
+    if (trip.passengerIds.length >= trip.passengerCount) {
+        return res.status(400).json({ error: "El viaje ya está lleno." });
+    }
+
+    // Añadir el ID del usuario al array de pasajeros
+    trip.passengerIds.push(userId);
+
+    // Guardar los cambios en el archivo JSON
+    const updatedTrips = [...trips];
+    updatedTrips[tripIndex] = trip;
+    tripService.saveTrips(updatedTrips);
+
+    res.status(200).json({ message: "Usuario añadido al viaje exitosamente." });
+});
+
 
 module.exports = router;

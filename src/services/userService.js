@@ -22,6 +22,19 @@ function getUserById(userId) {
     return users.find(u => u.id === userId);  // Encontrar el usuario por su ID
 }
 
+// Encriptar datos del coche
+async function encryptCarData(carDetails) {
+    const plateHash = await bcrypt.hash(carDetails.plate, 10);
+    const modelHash = await bcrypt.hash(carDetails.model, 10);
+    const colorHash = await bcrypt.hash(carDetails.color, 10);
+
+    return {
+        plate: plateHash,
+        model: modelHash,
+        color: colorHash,
+    };
+}
+
 // Agregar un nuevo usuario
 async function addUser(userData) {
     const users = getUsers();
@@ -37,11 +50,10 @@ async function addUser(userData) {
     // Generar un UUID para el nuevo usuario
     const newUserId = uuidv4();  // Generamos un ID único con uuid
 
-    // Crear un objeto de coche si es un conductor
+    // Crear un objeto de coche cifrado si es un conductor
     let car = null;
     if (userData.type === "driver" && userData.carDetails) {
-        car = new Car(userData.carDetails.plate, userData.carDetails.model, userData.carDetails.color);
-        console.log(`Datos del auto: ${car}`);
+        car = await encryptCarData(userData.carDetails);
     }
 
     // Crear un nuevo usuario
@@ -52,7 +64,7 @@ async function addUser(userData) {
         hashedPassword,
         userData.phoneNumber,
         userData.type,
-        car  // Asociar coche solo si es un conductor
+        car  // Asociar coche cifrado solo si es un conductor
     );
 
     users.push(newUser);

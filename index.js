@@ -1,6 +1,6 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const cors = require('cors');
+const bodyParser = require("body-parser");
 require('dotenv').config();
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -9,8 +9,8 @@ const client = new Client({});
 
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
-app.use(cors);
 
 const userRoutes = require("./src/controllers/userController");
 const routeRoutes = require("./src/controllers/routeController");
