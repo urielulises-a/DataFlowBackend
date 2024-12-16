@@ -86,9 +86,21 @@ router.post("/find", async (req, res) => {
     const trips = tripService.getTrips(); // Obtener todos los viajes
 
     const filteredTrips = trips.filter(trip => {
-        // Buscar la ruta asociada al viaje
+        // Verificar si el estado del viaje es "waiting"
+        if (trip.status !== "waiting") return false;
+
+        // Obtener la ruta asociada al viaje
         const route = routes.find(r => r.id === trip.routeId);
         if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
+
+        // Crear un objeto de fecha combinando la fecha actual con la hora del schedule
+        const currentDate = new Date(); // Fecha y hora actual
+        const [hour, minute] = route.schedule.split(':'); // Extraer hora y minuto de schedule (asumimos formato "HH:mm AM/PM")
+        const scheduleDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, minute);
+
+        // Verificar si el viaje fue creado hace menos de 15 minutos
+        const minutesElapsed = (currentDate - scheduleDate) / (1000 * 60); // Diferencia en minutos
+        if (minutesElapsed > 15) return false;
 
         // Calculamos la distancia entre el origen y el destino
         const originDistance = calculateDistance(
@@ -150,6 +162,7 @@ router.post("/find", async (req, res) => {
 
     res.status(200).json(tripDetails);
 });
+
 
 router.post("/addUserInTrip", (req, res) => {
 
