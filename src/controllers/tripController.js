@@ -132,28 +132,18 @@ router.post("/find", async (req, res) => {
             // Verificar si el conductor tiene un coche registrado
             let carDetails = null;
             if (driver && driver.car) {
-                try {
-                    // Desencriptar los datos del coche utilizando la función decryptCarData
-                    const plate = userService.decryptCarData(driver.car.plate);
-                    const model = userService.decryptCarData(driver.car.model);
-                    const color = userService.decryptCarData(driver.car.color);
-
-                    carDetails = {
-                        plate: plate || "No disponible",
-                        model: model || "No disponible",
-                        color: color || "No disponible",
-                    };
-                } catch (error) {
-                    console.error("Error al desencriptar los datos del coche:", error);
-                    carDetails = { plate: "Error", model: "Error", color: "Error" };
-                }
+                carDetails = {
+                    plate: driver.car.plate || "No disponible",
+                    model: driver.car.model || "No disponible",
+                    color: driver.car.color || "No disponible",
+                };
             }
 
             return {
                 tripId: trip.id,                     // ID del viaje
                 driverName: driver ? driver.name : "Desconocido", // Nombre del conductor
                 phoneNumber: driver ? driver.phoneNumber : "Desconocido", // Número telefónico del conductor
-                carDetails: carDetails,              // Datos del coche desencriptados
+                carDetails: carDetails,              // Datos del coche sin desencriptar
                 route: {
                     origin: route.origin,
                     destination: route.destination,
@@ -166,7 +156,6 @@ router.post("/find", async (req, res) => {
 
     res.status(200).json(tripDetails);
 });
-
 
 
 router.post("/addUserInTrip", (req, res) => {

@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const bcrypt = require("bcrypt");  // Asegúrate de tener bcrypt importado
 const { v4: uuidv4 } = require("uuid");
 const User = require("../models/userModel");
@@ -35,53 +34,6 @@ function getUserById(userId) {
     return users.find(u => u.id === userId);  // Encontrar el usuario por su ID
 }
 
-// Función para encriptar datos (AES-256)
-function encrypt(text) {
-    let iv = crypto.randomBytes(IV_LENGTH);  // Generar un IV aleatorio
-    let cipher = crypto.createCipheriv('aes-256-cbc', encryptionKeyBuffer, iv);  // Crear el cifrador con AES-256-CBC
-    let encrypted = cipher.update(text, 'utf8', 'hex');  // Encriptar los datos
-    encrypted += cipher.final('hex');  // Completar el cifrado
-    return iv.toString('hex') + ':' + encrypted;  // Retornar el IV y el texto cifrado
-}
-
-// Función para desencriptar datos
-function decrypt(text) {
-    let textParts = text.split(':');  // Dividir el IV y el texto cifrado
-    let iv = Buffer.from(textParts.shift(), 'hex');  // Convertir el IV de nuevo
-    let encryptedText = Buffer.from(textParts.join(':'), 'hex');  // Convertir el texto cifrado
-    let decipher = crypto.createDecipheriv('aes-256-cbc', encryptionKeyBuffer, iv);  // Crear el descifrador
-    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');  // Desencriptar los datos
-    decrypted += decipher.final('utf8');  // Completar la desencriptación
-    return decrypted;  // Retornar el texto desencriptado
-}
-
-// Encriptar datos del coche
-async function encryptCarData(carDetails) {
-    const plateHash = encrypt(carDetails.plate);
-    const modelHash = encrypt(carDetails.model);
-    const colorHash = encrypt(carDetails.color);
-
-    return {
-        plate: plateHash,
-        model: modelHash,
-        color: colorHash,
-    };
-}
-
-// Desencriptar datos del coche
-async function decryptCarData(carDetails) {
-    const plate = carDetails.plate ? decrypt(carDetails.plate) : "No disponible";
-    const model = carDetails.model ? decrypt(carDetails.model) : "No disponible";
-    const color = carDetails.color ? decrypt(carDetails.color) : "No disponible";
-
-    return {
-        plate,
-        model,
-        color,
-    };
-}
-
-
 // Agregar un nuevo usuario
 async function addUser(userData) {
     const users = getUsers();
@@ -97,10 +49,10 @@ async function addUser(userData) {
     // Generar un UUID para el nuevo usuario
     const newUserId = uuidv4();
 
-    // Crear un objeto de coche cifrado si es un conductor
+    // Crear un objeto de coche sin cifrado si es un conductor
     let car = null;
     if (userData.type === "driver" && userData.carDetails) {
-        car = await encryptCarData(userData.carDetails);
+        car = userData.carDetails; // No se realiza encriptación
     }
 
     // Crear un nuevo usuario
@@ -118,6 +70,7 @@ async function addUser(userData) {
     fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
     return newUserId;
 }
+
 
 // Verificar las credenciales del usuario
 async function verifyUser(email, password) {
