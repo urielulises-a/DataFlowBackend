@@ -6,6 +6,7 @@ function getTrips() {
         return [];
     }
     const data = fs.readFileSync(filePath, "utf-8");
+
     return JSON.parse(data);
 }
 
@@ -49,4 +50,14 @@ function updateTripStatus(tripId, status) {
     return true;
 }
 
-module.exports = { getTrips, addTrip, updateTripStatus };
+// Guardar los cambios en el archivo JSON
+function saveTrips(trips) {
+    try {
+        fs.writeFileSync(filePath, JSON.stringify(trips, null, 2), "utf-8");
+        console.log("Datos de viajes actualizados correctamente.");
+    } catch (error) {
+        console.error("Error al guardar los datos de viajes:", error);
+    }
+}
+
+module.exports = { getTrips, addTrip, updateTripStatus, saveTrips };

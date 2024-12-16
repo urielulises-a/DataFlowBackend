@@ -118,9 +118,9 @@ router.post("/find", async (req, res) => {
             if (driver.car) {
                 try {
                     // Desencriptar los datos del coche
-                    const plate = await bcrypt.compareSync(driver.car.plate);
-                    const model = await bcrypt.compareSync(driver.car.model);
-                    const color = await bcrypt.compareSync(driver.car.color);
+                    const plate = await bcrypt.compareSync(driver.car.plate, 10);
+                    const model = await bcrypt.compareSync(driver.car.model, 10);
+                    const color = await bcrypt.compareSync(driver.car.color, 10);
 
                     carDetails = {
                         plate: plate ? driver.car.plate : "No disponible",
@@ -151,7 +151,8 @@ router.post("/find", async (req, res) => {
     res.status(200).json(tripDetails);
 });
 
-router.put("/addUserInTrip", (req, res) => {
+router.post("/addUserInTrip", (req, res) => {
+
     const { tripId, userId } = req.body;
 
     if (!tripId || !userId) {
