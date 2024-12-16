@@ -214,8 +214,6 @@ router.delete("/cancelAssistant", (req, res) => {
     }
 
     // Leer los datos del archivo
-    let trips = readTripsFile();
-
     // Buscar el viaje correspondiente
     const tripIndex = trips.findIndex(trip => trip.id === tripId);
 
