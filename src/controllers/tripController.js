@@ -93,9 +93,14 @@ router.post("/find", async (req, res) => {
         const route = routes.find(r => r.id === trip.routeId);
         if (!route) return false; // Si no hay ruta asociada, ignorar este viaje
 
+        // Extraer la hora y minuto de "HH:mm AM/PM"
+        const [time, period] = route.schedule.split(" ");
+        let [hour, minute] = time.split(":").map(Number);
+        if (period === "PM" && hour < 12) hour += 12;
+        if (period === "AM" && hour === 12) hour = 0; // Ajustar medianoche
+
         // Crear un objeto de fecha combinando la fecha actual con la hora del schedule
         const currentDate = new Date(); // Fecha y hora actual
-        const [hour, minute] = route.schedule.split(':'); // Extraer hora y minuto de schedule (asumimos formato "HH:mm AM/PM")
         const scheduleDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), hour, minute);
 
         // Verificar si el viaje fue creado hace menos de 15 minutos
@@ -127,17 +132,17 @@ router.post("/find", async (req, res) => {
 
             // Verificar si el conductor tiene un coche registrado
             let carDetails = null;
-            if (driver.car) {
+            if (driver && driver.car) {
                 try {
-                    // Desencriptar los datos del coche
-                    const plate = await bcrypt.compareSync(driver.car.plate, 10);
-                    const model = await bcrypt.compareSync(driver.car.model, 10);
-                    const color = await bcrypt.compareSync(driver.car.color, 10);
+                    // Desencriptar los datos del coche utilizando la función decryptCarData
+                    const plate = decryptCarData(driver.car.plate);
+                    const model = decryptCarData(driver.car.model);
+                    const color = decryptCarData(driver.car.color);
 
                     carDetails = {
-                        plate: plate ? driver.car.plate : "No disponible",
-                        model: model ? driver.car.model : "No disponible",
-                        color: color ? driver.car.color : "No disponible",
+                        plate: plate || "No disponible",
+                        model: model || "No disponible",
+                        color: color || "No disponible",
                     };
                 } catch (error) {
                     console.error("Error al desencriptar los datos del coche:", error);
@@ -147,8 +152,8 @@ router.post("/find", async (req, res) => {
 
             return {
                 tripId: trip.id,                     // ID del viaje
-                driverName: driver.name,             // Nombre del conductor
-                phoneNumber: driver.phoneNumber,     // Número telefónico del conductor
+                driverName: driver ? driver.name : "Desconocido", // Nombre del conductor
+                phoneNumber: driver ? driver.phoneNumber : "Desconocido", // Número telefónico del conductor
                 carDetails: carDetails,              // Datos del coche desencriptados
                 route: {
                     origin: route.origin,
@@ -162,6 +167,7 @@ router.post("/find", async (req, res) => {
 
     res.status(200).json(tripDetails);
 });
+
 
 
 router.post("/addUserInTrip", (req, res) => {
