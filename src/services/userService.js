@@ -70,9 +70,9 @@ async function encryptCarData(carDetails) {
 
 // Desencriptar datos del coche
 async function decryptCarData(carDetails) {
-    const plate = decrypt(carDetails.plate);
-    const model = decrypt(carDetails.model);
-    const color = decrypt(carDetails.color);
+    const plate = carDetails.plate ? decrypt(carDetails.plate) : "No disponible";
+    const model = carDetails.model ? decrypt(carDetails.model) : "No disponible";
+    const color = carDetails.color ? decrypt(carDetails.color) : "No disponible";
 
     return {
         plate,
@@ -80,6 +80,7 @@ async function decryptCarData(carDetails) {
         color,
     };
 }
+
 
 // Agregar un nuevo usuario
 async function addUser(userData) {
