@@ -1,9 +1,16 @@
 const fs = require("fs");
 const path = require("path");
-const bcrypt = require("bcrypt");
-const { v4: uuidv4 } = require("uuid");  // Importamos uuid para generar IDs únicos
+const crypto = require("crypto");
+const { v4: uuidv4 } = require("uuid");
 const User = require("../models/userModel");
 const Car = require("../models/carModel");
+
+// Cargar variables de entorno desde .env
+require('dotenv').config();
+
+// Clave de encriptación AES-256 (32 bytes) obtenida de .env
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex'); 
+const IV_LENGTH = 16;  // Longitud del IV para AES-256
 
 const filePath = path.join(__dirname, "../../NFS_Folder/users.json");
 
@@ -22,16 +29,49 @@ function getUserById(userId) {
     return users.find(u => u.id === userId);  // Encontrar el usuario por su ID
 }
 
+// Función para encriptar datos (AES-256)
+function encrypt(text) {
+    let iv = crypto.randomBytes(IV_LENGTH);  // Generar un IV aleatorio
+    let cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);  // Crear el cifrador con AES-256-CBC
+    let encrypted = cipher.update(text, 'utf8', 'hex');  // Encriptar los datos
+    encrypted += cipher.final('hex');  // Completar el cifrado
+    return iv.toString('hex') + ':' + encrypted;  // Retornar el IV y el texto cifrado
+}
+
+// Función para desencriptar datos
+function decrypt(text) {
+    let textParts = text.split(':');  // Dividir el IV y el texto cifrado
+    let iv = Buffer.from(textParts.shift(), 'hex');  // Convertir el IV de nuevo
+    let encryptedText = Buffer.from(textParts.join(':'), 'hex');  // Convertir el texto cifrado
+    let decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);  // Crear el descifrador
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');  // Desencriptar los datos
+    decrypted += decipher.final('utf8');  // Completar la desencriptación
+    return decrypted;  // Retornar el texto desencriptado
+}
+
 // Encriptar datos del coche
 async function encryptCarData(carDetails) {
-    const plateHash = await bcrypt.hash(carDetails.plate, 10);
-    const modelHash = await bcrypt.hash(carDetails.model, 10);
-    const colorHash = await bcrypt.hash(carDetails.color, 10);
+    const plateHash = encrypt(carDetails.plate);
+    const modelHash = encrypt(carDetails.model);
+    const colorHash = encrypt(carDetails.color);
 
     return {
         plate: plateHash,
         model: modelHash,
         color: colorHash,
+    };
+}
+
+// Desencriptar datos del coche
+async function decryptCarData(carDetails) {
+    const plate = decrypt(carDetails.plate);
+    const model = decrypt(carDetails.model);
+    const color = decrypt(carDetails.color);
+
+    return {
+        plate,
+        model,
+        color,
     };
 }
 
@@ -48,7 +88,7 @@ async function addUser(userData) {
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
     // Generar un UUID para el nuevo usuario
-    const newUserId = uuidv4();  // Generamos un ID único con uuid
+    const newUserId = uuidv4();
 
     // Crear un objeto de coche cifrado si es un conductor
     let car = null;
@@ -58,13 +98,13 @@ async function addUser(userData) {
 
     // Crear un nuevo usuario
     const newUser = new User(
-        newUserId,  // Asignar el UUID generado
+        newUserId,
         userData.name,
         userData.email,
         hashedPassword,
         userData.phoneNumber,
         userData.type,
-        car  // Asociar coche cifrado solo si es un conductor
+        car
     );
 
     users.push(newUser);
@@ -91,4 +131,6 @@ module.exports = {
     addUser,
     verifyUser,
     getUserById,
+    encryptCarData,
+    decryptCarData,
 };
